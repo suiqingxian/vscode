@@ -20,6 +20,7 @@ import { IConfigurationService } from 'vs/platform/configuration/common/configur
 import { IConfigurationEditingService, ConfigurationTarget } from 'vs/workbench/services/configuration/common/configurationEditing';
 import { localize } from 'vs/nls';
 import { Action } from 'vs/base/common/actions';
+import { WALK_THROUGH_SCHEME } from 'vs/workbench/parts/walkThrough/electron-browser/walkThroughContentProvider';
 
 const enabledKey = 'workbench.welcome.enabled';
 
@@ -78,7 +79,8 @@ class WelcomePage {
 
 	private create() {
 		const recentlyOpened = this.windowService.getRecentlyOpen();
-		const uri = URI.parse(require.toUrl('./welcomePage.html'));
+		const uri = URI.parse(require.toUrl('./welcomePage.html'))
+			.with({ scheme: WALK_THROUGH_SCHEME });
 		const input = this.instantiationService.createInstance(WalkThroughInput, localize('welcome.title', "Welcome"), '', uri, container => this.onReady(container, recentlyOpened));
 		this.editorService.openEditor(input, { pinned: true }, Position.ONE)
 			.then(null, onUnexpectedError);

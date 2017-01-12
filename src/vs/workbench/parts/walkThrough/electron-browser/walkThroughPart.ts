@@ -122,10 +122,11 @@ export class WalkThroughPart extends BaseEditor {
 		const folder = new TPromise<string>((c, e) => mkdirp(folderName, null, err => err ? e(err) : c(folderName)));
 
 		return super.setInput(input, options)
-			.then(() => this.fileService.resolveContent(input.getResource(), { acceptTextOnly: true }))
-			.then(content => {
+			.then(() => input.resolve(true))
+			.then(model => {
+				const content = model.textEditorModel.getLinesContent().join('\n');
 				if (strings.endsWith(input.getResource().path, '.html')) {
-					this.content.innerHTML = content.value;
+					this.content.innerHTML = content;
 					this.decorateContent();
 					if (input.onReady) {
 						input.onReady(this.content);
@@ -149,7 +150,7 @@ export class WalkThroughPart extends BaseEditor {
 
 					return `<div id=${id} class="walkThroughEditorContainer" ></div>`;
 				};
-				this.content.innerHTML = marked(content.value, { renderer });
+				this.content.innerHTML = marked(content, { renderer });
 				this.decorateContent();
 
 				// TODO: also create jsconfig.json and tsconfig.json
