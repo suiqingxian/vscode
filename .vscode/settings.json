@@ -6,7 +6,9 @@
 		".git": true,
 		".build": true,
 		"**/.DS_Store": true,
-		"build/**/*.js": { "when": "$(basename).ts" }
+		"build/**/*.js": {
+			"when": "$(basename).ts"
+		}
 	},
 	"search.exclude": {
 		"**/node_modules": true,
@@ -14,10 +16,10 @@
 		".build/**": true,
 		"out*/**": true,
 		"i18n/**": true,
-		"extensions/**/out/**": true
+		"extensions/**/out/**": true,
+		"test/smoke/out/**": true
 	},
 	"tslint.enable": true,
-	"tslint.rulesDirectory": "build/lib/tslint",
 	"lcov.path": [
 		"./.build/coverage/lcov.info",
 		"./.build/coverage-single/lcov.info"
@@ -30,6 +32,5 @@
 				"command": "${workspaceRoot}\\scripts\\test.bat --coverage --run ${file}"
 			}
 		}
-	],
-	"typescript.tsdk": "./node_modules/typescript/lib"
+	]
 }

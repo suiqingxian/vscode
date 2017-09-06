@@ -10,10 +10,16 @@ import Event from 'vs/base/common/event';
 import { CancellationToken } from 'vs/base/common/cancellation';
 import { IQuickNavigateConfiguration, IAutoFocus, IEntryRunContext } from 'vs/base/parts/quickopen/common/quickOpen';
 import { createDecorator } from 'vs/platform/instantiation/common/instantiation';
+import { IAction } from 'vs/base/common/actions';
+import { FileKind } from 'vs/platform/files/common/files';
 
 export interface IFilePickOpenEntry extends IPickOpenEntry {
 	resource: uri;
-	isFolder?: boolean;
+	fileKind?: FileKind;
+}
+
+export interface IPickOpenAction extends IAction {
+	run(item: IPickOpenItem): TPromise<any>;
 }
 
 export interface IPickOpenEntry {
@@ -24,6 +30,15 @@ export interface IPickOpenEntry {
 	separator?: ISeparator;
 	alwaysShow?: boolean;
 	run?: (context: IEntryRunContext) => void;
+	action?: IAction;
+	payload?: any;
+}
+
+export interface IPickOpenItem {
+	remove: () => void;
+	getId: () => string;
+	getResource: () => uri;
+	getPayload: () => any;
 }
 
 export interface ISeparator {
@@ -57,6 +72,16 @@ export interface IPickOptions {
 	 * an optional flag to not close the picker on focus lost
 	 */
 	ignoreFocusLost?: boolean;
+
+	/**
+	 * enables quick navigate in the picker to open an element without typing
+	 */
+	quickNavigateConfiguration?: IQuickNavigateConfiguration;
+
+	/**
+	 * a context key to set when this picker is active
+	 */
+	contextKey?: string;
 }
 
 export interface IInputOptions {
@@ -65,6 +90,11 @@ export interface IInputOptions {
 	 * the value to prefill in the input box
 	 */
 	value?: string;
+
+	/**
+	 * the selection of value, default to the whole word
+	 */
+	valueSelection?: [number, number];
 
 	/**
 	 * the text to display underneath the input box
@@ -91,6 +121,7 @@ export interface IInputOptions {
 
 export interface IShowOptions {
 	quickNavigateConfiguration?: IQuickNavigateConfiguration;
+	inputSelection?: { start: number; end: number; };
 }
 
 export const IQuickOpenService = createDecorator<IQuickOpenService>('quickOpenService');
@@ -121,9 +152,9 @@ export interface IQuickOpenService {
 	pick<T extends IPickOpenEntry>(picks: T[], options?: IPickOptions, token?: CancellationToken): TPromise<T>;
 
 	/**
-	 * Should not be used by clients. Will cause any opened quick open widget to navigate in the result set.
+	 * Allows to navigate from the outside in an opened picker.
 	 */
-	quickNavigate(configuration: IQuickNavigateConfiguration, next: boolean): void;
+	navigate(next: boolean, quickNavigate?: IQuickNavigateConfiguration): void;
 
 	/**
 	 * Opens the quick open box for user input and returns a promise with the user typed value if any.

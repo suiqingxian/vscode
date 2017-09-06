@@ -5,13 +5,18 @@
 
 import { IDisposable } from 'vs/base/common/lifecycle';
 import URI from 'vs/base/common/uri';
+import Event, { Emitter } from 'vs/base/common/event';
 import * as editorCommon from 'vs/editor/common/editorCommon';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { toResource } from 'vs/workbench/common/editor';
+import { isEqual } from 'vs/base/common/paths';
+import { IRange } from 'vs/editor/common/core/range';
+import { CursorChangeReason, ICursorPositionChangedEvent } from 'vs/editor/common/controller/cursorEvents';
+import { ModelDecorationOptions } from 'vs/editor/common/model/textModelWithDecorations';
 
 export interface IRangeHighlightDecoration {
 	resource: URI;
-	range: editorCommon.IRange;
+	range: IRange;
 	isWholeLine?: boolean;
 }
 
@@ -21,12 +26,16 @@ export class RangeHighlightDecorations implements IDisposable {
 	private editor: editorCommon.ICommonCodeEditor = null;
 	private editorDisposables: IDisposable[] = [];
 
+	private _onHighlightRemoved: Emitter<void> = new Emitter<void>();
+	public readonly onHighlghtRemoved: Event<void> = this._onHighlightRemoved.event;
+
 	constructor( @IWorkbenchEditorService private editorService: IWorkbenchEditorService) {
 	}
 
 	public removeHighlightRange() {
-		if (this.editor && this.rangeHighlightDecorationId) {
-			this.doRemoveRangeHighlight(this.editor, this.rangeHighlightDecorationId);
+		if (this.editor && this.editor.getModel() && this.rangeHighlightDecorationId) {
+			this.editor.deltaDecorations([this.rangeHighlightDecorationId], []);
+			this._onHighlightRemoved.fire();
 		}
 		this.rangeHighlightDecorationId = null;
 	}
@@ -49,7 +58,7 @@ export class RangeHighlightDecorations implements IDisposable {
 	private getEditor(resourceRange: IRangeHighlightDecoration): editorCommon.ICommonCodeEditor {
 		const fileResource = toResource(this.editorService.getActiveEditorInput(), { filter: 'file' });
 		if (fileResource) {
-			if (fileResource.fsPath === resourceRange.resource.fsPath) {
+			if (isEqual(fileResource.fsPath, resourceRange.resource.fsPath)) {
 				return <editorCommon.ICommonCodeEditor>this.editorService.getActiveEditor().getControl();
 			}
 		}
@@ -60,19 +69,19 @@ export class RangeHighlightDecorations implements IDisposable {
 		if (this.editor !== editor) {
 			this.disposeEditorListeners();
 			this.editor = editor;
-			this.editorDisposables.push(this.editor.onDidChangeCursorPosition((e: editorCommon.ICursorPositionChangedEvent) => {
+			this.editorDisposables.push(this.editor.onDidChangeCursorPosition((e: ICursorPositionChangedEvent) => {
 				if (
-					e.reason === editorCommon.CursorChangeReason.NotSet
-					|| e.reason === editorCommon.CursorChangeReason.Explicit
-					|| e.reason === editorCommon.CursorChangeReason.Undo
-					|| e.reason === editorCommon.CursorChangeReason.Redo
+					e.reason === CursorChangeReason.NotSet
+					|| e.reason === CursorChangeReason.Explicit
+					|| e.reason === CursorChangeReason.Undo
+					|| e.reason === CursorChangeReason.Redo
 				) {
-					this.doRemoveRangeHighlight(this.editor, this.rangeHighlightDecorationId);
+					this.removeHighlightRange();
 				}
 			}));
-			this.editorDisposables.push(this.editor.onDidChangeModel(() => { this.doRemoveRangeHighlight(this.editor, this.rangeHighlightDecorationId); }));
+			this.editorDisposables.push(this.editor.onDidChangeModel(() => { this.removeHighlightRange(); }));
 			this.editorDisposables.push(this.editor.onDidDispose(() => {
-				this.doRemoveRangeHighlight(this.editor, this.rangeHighlightDecorationId);
+				this.removeHighlightRange();
 				this.editor = null;
 			}));
 		}
@@ -83,16 +92,19 @@ export class RangeHighlightDecorations implements IDisposable {
 		this.editorDisposables = [];
 	}
 
-	private doRemoveRangeHighlight(model: editorCommon.ICommonCodeEditor, rangeHighlightDecorationId: string) {
-		model.deltaDecorations([rangeHighlightDecorationId], []);
-	}
+	private static _WHOLE_LINE_RANGE_HIGHLIGHT = ModelDecorationOptions.register({
+		stickiness: editorCommon.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+		className: 'rangeHighlight',
+		isWholeLine: true
+	});
 
-	private createRangeHighlightDecoration(isWholeLine: boolean = true): editorCommon.IModelDecorationOptions {
-		return {
-			stickiness: editorCommon.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
-			className: 'rangeHighlight',
-			isWholeLine
-		};
+	private static _RANGE_HIGHLIGHT = ModelDecorationOptions.register({
+		stickiness: editorCommon.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+		className: 'rangeHighlight'
+	});
+
+	private createRangeHighlightDecoration(isWholeLine: boolean = true): ModelDecorationOptions {
+		return (isWholeLine ? RangeHighlightDecorations._WHOLE_LINE_RANGE_HIGHLIGHT : RangeHighlightDecorations._RANGE_HIGHLIGHT);
 	}
 
 	public dispose() {

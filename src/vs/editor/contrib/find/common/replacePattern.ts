@@ -39,7 +39,7 @@ export class ReplacePattern {
 	}
 
 	public buildReplaceString(matches: string[]): string {
-		if (this._staticValue) {
+		if (this._staticValue !== null) {
 			return this._staticValue;
 		}
 
@@ -67,7 +67,9 @@ export class ReplacePattern {
 		let remainder = '';
 		while (matchIndex > 0) {
 			if (matchIndex < matches.length) {
-				return matches[matchIndex] + remainder;
+				// A match can be undefined
+				let match = (matches[matchIndex] || '');
+				return match + remainder;
 			}
 			remainder = String(matchIndex % 10) + remainder;
 			matchIndex = Math.floor(matchIndex / 10);

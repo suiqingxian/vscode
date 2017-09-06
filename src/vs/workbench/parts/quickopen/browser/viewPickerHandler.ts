@@ -6,16 +6,14 @@
 
 import { TPromise } from 'vs/base/common/winjs.base';
 import nls = require('vs/nls');
-import { Registry } from 'vs/platform/platform';
-import { PanelRegistry, Extensions as PanelExtensions } from 'vs/workbench/browser/panel';
 import errors = require('vs/base/common/errors');
 import strings = require('vs/base/common/strings');
 import scorer = require('vs/base/common/scorer');
-import { Mode, IEntryRunContext, IAutoFocus, IQuickNavigateConfiguration } from 'vs/base/parts/quickopen/common/quickOpen';
+import { Mode, IEntryRunContext, IAutoFocus, IQuickNavigateConfiguration, IModel } from 'vs/base/parts/quickopen/common/quickOpen';
 import { QuickOpenModel, QuickOpenEntryGroup, QuickOpenEntry } from 'vs/base/parts/quickopen/browser/quickOpenModel';
 import { QuickOpenHandler, QuickOpenAction } from 'vs/workbench/browser/quickopen';
 import { IViewletService } from 'vs/workbench/services/viewlet/browser/viewlet';
-import { IOutputService, Extensions as OutputExtensions, IOutputChannelRegistry, OUTPUT_PANEL_ID } from 'vs/workbench/parts/output/common/output';
+import { IOutputService, OUTPUT_PANEL_ID } from 'vs/workbench/parts/output/common/output';
 import { ITerminalService, TERMINAL_PANEL_ID } from 'vs/workbench/parts/terminal/common/terminal';
 import { IPanelService } from 'vs/workbench/services/panel/common/panelService';
 import { IQuickOpenService } from 'vs/platform/quickOpen/common/quickOpen';
@@ -89,7 +87,7 @@ export class ViewPickerHandler extends QuickOpenHandler {
 				return false;
 			}
 
-			const {labelHighlights, descriptionHighlights} = QuickOpenEntry.highlight(e, searchValue);
+			const { labelHighlights, descriptionHighlights } = QuickOpenEntry.highlight(e, searchValue);
 			e.setHighlights(labelHighlights, descriptionHighlights);
 
 			return true;
@@ -125,7 +123,7 @@ export class ViewPickerHandler extends QuickOpenHandler {
 		const terminals = this.terminalService.terminalInstances;
 
 		// Panels
-		const panels = Registry.as<PanelRegistry>(PanelExtensions.Panels).getPanels().filter(p => {
+		const panels = this.panelService.getPanels().filter(p => {
 			if (p.id === OUTPUT_PANEL_ID) {
 				return false; // since we already show output channels below
 			}
@@ -156,7 +154,7 @@ export class ViewPickerHandler extends QuickOpenHandler {
 		});
 
 		// Output Channels
-		const channels = Registry.as<IOutputChannelRegistry>(OutputExtensions.OutputChannels).getChannels();
+		const channels = this.outputService.getChannels();
 		channels.forEach((channel, index) => {
 			const outputCategory = nls.localize('channels', "Output");
 			const entry = new ViewEntry(channel.label, outputCategory, () => this.outputService.getChannel(channel.id).show().done(null, errors.onUnexpectedError));
@@ -167,9 +165,9 @@ export class ViewPickerHandler extends QuickOpenHandler {
 		return viewEntries;
 	}
 
-	public getAutoFocus(searchValue: string, quickNavigateConfiguration: IQuickNavigateConfiguration): IAutoFocus {
+	public getAutoFocus(searchValue: string, context: { model: IModel<QuickOpenEntry>, quickNavigateConfiguration?: IQuickNavigateConfiguration }): IAutoFocus {
 		return {
-			autoFocusFirstEntry: !!searchValue || !!quickNavigateConfiguration
+			autoFocusFirstEntry: !!searchValue || !!context.quickNavigateConfiguration
 		};
 	}
 }
@@ -202,7 +200,7 @@ export class QuickOpenViewPickerAction extends Action {
 		super(id, label);
 	}
 
-	public run(): TPromise<any> {
+	public run(): TPromise<boolean> {
 		const keys = this.keybindingService.lookupKeybindings(this.id);
 
 		this.quickOpenService.show(VIEW_PICKER_PREFIX, { quickNavigateConfiguration: { keybindings: keys } });
